@@ -5,6 +5,7 @@ type User struct {
 	Userid			   int		 `json:"userid" sql:"AUTO_INCREMENT" gorm:"primary_key"`
 	Name         	   string    `json:"name"`
 	Age      		   int   	 `json:"age"`
+	Password      	   string    `json:"password"`
 }
 type Risk_profile struct {
 	Id			 int	 	 `sql:"AUTO_INCREMENT" gorm:"primary_key"`
