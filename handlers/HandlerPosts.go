@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-crud-article/connection"
+	"go-crud-article/repositories"
 	"go-crud-article/structs"
+	"go-crud-article/utils"
 	"io/ioutil"
 	"net/http"
-
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gorilla/mux"
 )
@@ -16,67 +16,51 @@ import (
 func HomePage(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Welcome!")
 }
-func HashPassword(password string) (string, error) {
-    bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-    return string(bytes), err
-}
-func CheckPasswordHash(password, hash string) bool {
-    err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-    return err == nil
-}
-func Login(w http.ResponseWriter, r *http.Request)  {
-	// name     := r.URL.Query().Get("name")
-	// password := r.URL.Query().Get("name")
 
-
-	res := structs.Result{Code: 200, Message: "Success get articles"}
-	results, err := json.Marshal(res)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(results)
-}
 
 func CreateUser(w http.ResponseWriter, r *http.Request) {
-	keyPass := make(map[string]string)
-	keyVal := make(map[string]int)
     payloads, _ := ioutil.ReadAll(r.Body)
 
-	name	 := 	keyVal["age"]
-	
-	var user structs.User
-	
+	var dataUser structs.User
 	var risk_profile structs.Risk_profile
-	var param int = 55
-	if param-name>=30 {
+	json.Unmarshal(payloads, &dataUser)
+	nameUser := dataUser.Name
+
+	var tabel_user structs.User
+	connection.DB.Where("name = ?", nameUser).First(&tabel_user)
+
+
+	hash, errorHash := HashPassword(dataUser.Password)
+	if errorHash != nil {
+		http.Error(w, errorHash.Error(), http.StatusBadRequest)
+	}
+	dataUser.Password = hash
+	connection.DB.Create(&dataUser)
+	
+	var age = dataUser.Age
+	risk_profile.Userid = dataUser.Userid
+	
+	paramAge := (55 - age)
+	// var risk_profile structs.Risk_profile
+	if paramAge>=30 {
 		risk_profile.STOCK = 72.5
 		risk_profile.BOND = 21.5
 		risk_profile.MM = 100-(risk_profile.STOCK+risk_profile.BOND)
 	}
-	if param-name>=20 && param-name<=29 {
+	if paramAge>=20 && paramAge<=29 {
 		risk_profile.STOCK = 54.5
 		risk_profile.BOND = 25.5
 		risk_profile.MM = 100-(risk_profile.STOCK+risk_profile.BOND)
 	}
-	if param-name<20  {
+	if paramAge<20  {
 		risk_profile.STOCK = 34.5
 		risk_profile.BOND = 45.5
 		risk_profile.MM = 100-(risk_profile.STOCK+risk_profile.BOND)
 	}
-	hash, _ := HashPassword(keyPass["password"]) 
-	json.Unmarshal(payloads, &user)
 	json.Unmarshal(payloads, &risk_profile)
-
-
-	connection.DB.Create(&user)
-	risk_profile.Userid = user.Userid
-	user.Password = hash
 	connection.DB.Create(&risk_profile)
-	res := structs.Result{Code: 200, Data: user, Message: "Success create user"}
+
+	res := structs.Result{Code: 200, Data: dataUser.Userid, Message: "Success create user"}
 	result, err := json.Marshal(res)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -86,19 +70,58 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	w.Write(result)
 }
 func ListUser(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	limit := vars["limit"]
-	offset := vars["offset"]
+	// vars := mux.Vars(r)
+	// customerID := vars["userid"]
 
-	articles := []structs.User{}
+	// var risk_profile structs.Risk_profile
 
-	connection.DB.
-		Limit(limit).
-		Offset(offset).
+	// connection.DB.Where("userid = ?", customerID).First(&risk_profile)
+	// connection.DB.Model(&risk_profile).Select([]string{"id", "name", "age"}).Related(&risk_profile.User, "Userid")
+	// // connection.DB.Model(&risk_profile).Association("MasterUser")
+	// // connection.DB.First(&risk_profile, customerID)
+
+	// res := structs.Result{Code: 200, Data: risk_profile, Message: "Success get customers"}
+	// result, err := json.Marshal(res)
+
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// }
+
+	// w.Header().Set("Content-Type", "application/json")
+	// w.WriteHeader(http.StatusOK)
+	// w.Write(result)
+
+	// vars := mux.Vars(r)
+	// limit := vars["limit"]
+	// offset := vars["offset"]
+
+	// articles := []structs.User{}
+
+	// connection.DB.
+	// 	Limit(limit).
+	// 	Offset(offset).
 		
-		Find(&articles)
+	// 	Find(&articles)
 
-	res := structs.Result{Code: 200, Data: articles, Message: "Success get articles"}
+	// res := structs.Result{Code: 200, Data: articles, Message: "Success get articles"}
+	// results, err := json.Marshal(res)
+
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// }
+
+	// w.Header().Set("Content-Type", "application/json")
+	// w.WriteHeader(http.StatusOK)
+	// w.Write(results)
+	
+	pagination := utils.GeneratePagination(r)
+	var user structs.User
+	userLists, error := repositories.GetAllUsers(&user, &pagination)
+
+	if error != nil {
+		fmt.Println(error.Error())
+	}
+	res := structs.Result{Code: 200, Data: userLists, Message: "Success get customers"}
 	results, err := json.Marshal(res)
 
 	if err != nil {
@@ -108,9 +131,10 @@ func ListUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(results)
+
 }
 
-func GetDetailUser(w http.ResponseWriter, r *http.Request) {
+func DetailUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	articleID := vars["id"]
 

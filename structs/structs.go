@@ -24,3 +24,10 @@ type Result struct {
 	Data interface{} `json:"data"`
 	Message string `json:"message"`
 }
+
+//untuk pagiantion 
+type Pagination struct {
+	Limit int    `json:"limit"`
+	Page  int    `json:"page"`
+	Sort  string `json:"sort"`
+}
