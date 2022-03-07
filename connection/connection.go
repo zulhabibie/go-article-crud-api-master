@@ -21,7 +21,7 @@ func Connect()  {
 		} else {
 			log.Println("Server up and running")
 		}
-		DB.DropTableIfExists(&structs.User{}, &structs.Risk_profile{})
+		
 		DB.AutoMigrate(&structs.User{}, &structs.Risk_profile{})
 
 }
